@@ -9,8 +9,8 @@
     htop
     fastfetch
     yazi
+    heroic
   ];
-
   # Configuração do Git integrada
   programs.git = {
     enable = true;
