@@ -1,7 +1,10 @@
 { config, pkgs, ... }:
 
 {
-  imports = [ ./hardware-configuration.nix ];
+  imports = [
+  ./hardware-configuration.nix
+  <home-manager/nixos> # Importante: carrega o módulo
+];
 
   # 1. Habilitar o NUR (Nix User Repository)
   nixpkgs.config.allowUnfree = true;
