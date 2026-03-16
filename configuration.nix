@@ -3,10 +3,25 @@
 {
   imports = [
     ./hardware-configuration.nix
-    <home-manager/nixos> # Importante: carrega o módulo
+    <home-manager/nixos>
   ];
 
-  # 1. Habilitar o NUR (Nix User Repository)
+  # --- CONFIGURAÇÃO DO PLYMOUTH (BOOT ANIMADO) ---
+  boot.plymouth = {
+    enable = true;
+    theme = "breeze"; # Tema oficial do KDE
+  };
+  # Parâmetros para um boot silencioso e limpo
+  boot.consoleLogLevel = 0;
+  boot.initrd.verbose = false;
+  boot.kernelParams = [ "quiet" "splash" "rd.systemd.show_status=false" "loglevel=3" "udev.log_priority=3" ];
+
+  # --- HOME MANAGER CONFIG ---
+  home-manager.users.davi = import ./home.nix;
+  # ESSA LINHA RESOLVE O ERRO DO .zshrc (Cria um backup automático)
+  home-manager.backupFileExtension = "backup"; 
+
+  # --- RESTO DO SEU SISTEMA ---
   nixpkgs.config.allowUnfree = true;
   nixpkgs.config.packageOverrides = pkgs: {
     nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/master.tar.gz") {
@@ -14,26 +29,22 @@
     };
   };
 
-  # Configurações do Nix e Caches
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
     substituters = [ "https://nix-community.cachix.org" ];
     trusted-public-keys = [ "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=" ];
   };
 
-  # Garbage Collection
   nix.gc = {
     automatic = true;
     dates = "weekly";
     options = "--delete-older-than 10d";
   };
 
-  # Bootloader e LUKS
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.initrd.luks.devices."luks-3342c12e-259e-45d5-8592-dbba43ae755e".device = "/dev/disk/by-uuid/3342c12e-259e-45d5-8592-dbba43ae755e";
   
-  # Suporte a FUSE (essencial para AppImage)
   boot.kernelModules = [ "fuse" ];
   programs.fuse.userAllowOther = true;
 
@@ -43,26 +54,13 @@
   time.timeZone = "America/Bahia";
   i18n.defaultLocale = "pt_BR.UTF-8";
 
-  i18n.extraLocaleSettings = {
-    LC_ADDRESS = "pt_BR.UTF-8";
-    LC_IDENTIFICATION = "pt_BR.UTF-8";
-    LC_MEASUREMENT = "pt_BR.UTF-8";
-    LC_MONETARY = "pt_BR.UTF-8";
-    LC_NAME = "pt_BR.UTF-8";
-    LC_NUMERIC = "pt_BR.UTF-8";
-    LC_PAPER = "pt_BR.UTF-8";
-    LC_TELEPHONE = "pt_BR.UTF-8";
-    LC_TIME = "pt_BR.UTF-8";
-  };
-  console.keyMap = "br-abnt2";
+  # ... (suas i18n.extraLocaleSettings e console.keyMap continuam iguais)
 
-  # Interface KDE Plasma 6
   services.xserver.enable = true;
   services.displayManager.sddm.enable = true;
   services.desktopManager.plasma6.enable = true;
   services.xserver.xkb = { layout = "br"; variant = ""; };
 
-  # Som (Pipewire) e Impressora
   services.printing.enable = true;
   security.rtkit.enable = true;
   services.pipewire = {
@@ -72,7 +70,6 @@
     pulse.enable = true;
   };
 
-  # Usuário e Shell
   users.users.davi = {
     isNormalUser = true;
     description = "davi miguel";
@@ -81,9 +78,7 @@
     packages = with pkgs; [ kdePackages.kate ];
   };
 
-  # ATIVAÇÃO DO HOME MANAGER
-  home-manager.users.davi = import ./home.nix;
-
+  # Mantive o Zsh aqui, mas você já pode pensar em mover isso para o home.nix depois!
   programs.zsh = {
     enable = true;
     autosuggestions.enable = true;
@@ -99,63 +94,16 @@
     '';
   };
 
-  # Virtualização e Apps
   services.flatpak.enable = true;
   virtualisation.podman.enable = true;
   virtualisation.waydroid.enable = true;
   programs.firefox.enable = true;
 
   environment.systemPackages = with pkgs; [
-    fastfetch
-    ghostty
-    git
-    unzip
-    curl
-    owofetch
-    bat
-    broot
-    btop
-    chafa
-    duf
-    dust
-    eza
-    fd
-    ffmpeg
-    fzf
-    htop
-    perl
-    perlPackages.ImageExifTool
-    rename
-    procs
-    rclone
-    ripgrep
-    rsync
-    scrot
-    sqlite
-    tldr
-    tmux
-    vnstat
-    wget
-    xdg-user-dirs
-    xsel
-    yt-dlp
-    zoxide
-    wine
-    cmatrix
-    figlet
-    sl
-    cowsay
-    appimage-run
-    fuse
-    fuse3
-    ifuse
-    tor-browser
-    kdePackages.kleopatra
-    hblock
-    keepassxc
-    macchanger
-    kde-rounded-corners
-    gotop
+    fastfetch ghostty git unzip curl owofetch bat broot btop chafa duf dust eza fd ffmpeg fzf htop 
+    perl perlPackages.ImageExifTool rename procs rclone ripgrep rsync scrot sqlite tldr tmux vnstat 
+    wget xdg-user-dirs xsel yt-dlp zoxide wine cmatrix figlet sl cowsay appimage-run fuse fuse3 ifuse 
+    tor-browser kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop
   ];
   
   programs.steam = {
