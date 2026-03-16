@@ -149,7 +149,7 @@
     keepassxc
     macchanger
     kde-rounded-corners
-    ];
+    gotop ];
   programs.steam = {
     enable = true;
     remotePlay.openFirewall = true;
