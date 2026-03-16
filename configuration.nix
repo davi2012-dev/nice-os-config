@@ -2,9 +2,9 @@
 
 {
   imports = [
-  ./hardware-configuration.nix
-  <home-manager/nixos> # Importante: carrega o módulo
-];
+    ./hardware-configuration.nix
+    <home-manager/nixos> # Importante: carrega o módulo
+  ];
 
   # 1. Habilitar o NUR (Nix User Repository)
   nixpkgs.config.allowUnfree = true;
@@ -81,6 +81,9 @@
     packages = with pkgs; [ kdePackages.kate ];
   };
 
+  # ATIVAÇÃO DO HOME MANAGER
+  home-manager.users.davi = import ./home.nix;
+
   programs.zsh = {
     enable = true;
     autosuggestions.enable = true;
@@ -152,7 +155,9 @@
     keepassxc
     macchanger
     kde-rounded-corners
-    gotop ];
+    gotop
+  ];
+  
   programs.steam = {
     enable = true;
     remotePlay.openFirewall = true;

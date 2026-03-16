@@ -3,7 +3,7 @@
 {
   # O Home Manager precisa saber que versão está usando
   home.stateVersion = "25.11";
-
+  programs.home-manager.enable = true;
   # Pacotes que só você, davi, quer usar (limpe do seu configuration.nix se quiser)
   home.packages = with pkgs; [
     htop
