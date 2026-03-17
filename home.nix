@@ -15,8 +15,8 @@
     enable = true;
     settings = {
       user = {
-        email = "seu-email@exemplo.com"; 
-        name = "davi miguel";
+        email = "DaviMigue@proton.me"; 
+        name = "davi2012-dev";
       };
     };
   };
