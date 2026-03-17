@@ -116,7 +116,7 @@
     duf dust eza fd ffmpeg fzf htop perl perlPackages.ImageExifTool rename procs rclone 
     ripgrep rsync scrot sqlite tldr tmux vnstat wget xdg-user-dirs xsel yt-dlp zoxide 
     wine cmatrix figlet sl cowsay appimage-run fuse fuse3 ifuse tor-browser 
-    kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
+    kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava cowsay kdePackages.qtwebsockets kdePackages.qtconnectivity
   ];
 
   # --- APPS EXTRAS ---
