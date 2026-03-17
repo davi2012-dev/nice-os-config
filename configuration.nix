@@ -63,6 +63,10 @@
   services.desktopManager.plasma6.enable = true;
   services.xserver.xkb = { layout = "br"; variant = ""; };
 
+  # Bluetooth e KDE Connect (Necessários para os widgets)
+  hardware.bluetooth.enable = true;
+  programs.kdeconnect.enable = true;
+
   services.printing.enable = true;
   security.rtkit.enable = true;
   services.pipewire = {
@@ -76,7 +80,7 @@
   users.users.davi = {
     isNormalUser = true;
     description = "davi miguel";
-    extraGroups = [ "networkmanager" "wheel" "video" "podman" ];
+    extraGroups = [ "networkmanager" "wheel" "video" "podman" "bluetooth" ];
     shell = pkgs.zsh; 
     packages = with pkgs; [ kdePackages.kate ];
   };
@@ -107,6 +111,8 @@
       "${pkgs.kdePackages.kdeconnect-kde}/lib/qt-6/qml"
       "${pkgs.kdePackages.bluez-qt}/lib/qt-6/qml"
       "${pkgs.kdePackages.qtmultimedia}/lib/qt-6/qml"
+      "${pkgs.kdePackages.plasma-nm}/lib/qt-6/qml"
+      "${pkgs.kdePackages.bluedevil}/lib/qt-6/qml"
     ];
   };
 
@@ -129,7 +135,7 @@
     wine cmatrix figlet sl cowsay appimage-run fuse fuse3 ifuse tor-browser 
     kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
     kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
-    kdePackages.kdeconnect-kde kdePackages.bluez-qt
+    kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
   ];
 
   # --- APPS EXTRAS ---
