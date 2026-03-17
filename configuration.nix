@@ -128,6 +128,10 @@
       echo "Backup Git..."
       cd /etc/nixos && sudo git add . && sudo git commit -m "Auto: $(date)" && sudo git push
     '';
+    # Cria um Python que já vem com a biblioteca websockets instalada
+    myPython = pkgs.python3.withPackages (ps: with ps; [ 
+      websockets 
+    ]);
   in with pkgs; [
     nix-sync pkg-config libevdev fastfetch ghostty git unzip curl owofetch bat broot btop chafa 
     duf dust eza fd ffmpeg fzf htop perl perlPackages.ImageExifTool rename procs rclone 
@@ -136,9 +140,7 @@
     kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
     kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
     kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
-    # --- ADICIONADO PARA O CAVA WIDGET ---
-    python3
-    python3Packages.pip
+    myPython
   ];
 
   # --- APPS EXTRAS ---
