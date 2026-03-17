@@ -54,7 +54,7 @@
 
   networking.hostName = "nixos";
   networking.networkmanager.enable = true;
-  networking.firewall.trustedInterfaces = [ "waydroid0" ]; # CORREÇÃO: Internet no Waydroid
+  networking.firewall.trustedInterfaces = [ "waydroid0" ]; 
   time.timeZone = "America/Bahia";
   i18n.defaultLocale = "pt_BR.UTF-8";
 
@@ -141,8 +141,8 @@
     kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
     kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
     myPython
-    # Ferramenta para instalar libhoudini e GApps
-    nur.repos.casual.waydroid-magisk 
+    # PACOTE DO NUR CORRIGIDO
+    nur.repos.ataraxiasjel.waydroid-script
   ];
 
   # --- CONFIGURAÇÃO WAYDROID E GPU AMD ---
@@ -150,7 +150,6 @@
   virtualisation.podman.enable = true;
   virtualisation.waydroid.enable = true;
 
-  # Serviço para forçar a GPU AMD (RX 550) no Waydroid
   systemd.services.waydroid-gpu-persistence = {
     description = "Forçar propriedades da GPU AMD para Waydroid";
     after = [ "waydroid-container.service" ];
