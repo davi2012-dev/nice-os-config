@@ -54,6 +54,7 @@
 
   networking.hostName = "nixos";
   networking.networkmanager.enable = true;
+  networking.firewall.trustedInterfaces = [ "waydroid0" ]; # CORREÇÃO: Internet no Waydroid
   time.timeZone = "America/Bahia";
   i18n.defaultLocale = "pt_BR.UTF-8";
 
@@ -128,7 +129,6 @@
       echo "Backup Git..."
       cd /etc/nixos && sudo git add . && sudo git commit -m "Auto: $(date)" && sudo git push
     '';
-    # Cria um Python que já vem com a biblioteca websockets instalada
     myPython = pkgs.python3.withPackages (ps: with ps; [ 
       websockets 
     ]);
@@ -140,13 +140,35 @@
     kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
     kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
     kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
-    myPython waydroid-script
+    myPython
+    # Ferramenta para instalar libhoudini e GApps
+    nur.repos.casual.waydroid-magisk 
   ];
 
-  # --- APPS EXTRAS ---
+  # --- CONFIGURAÇÃO WAYDROID E GPU AMD ---
   services.flatpak.enable = true;
   virtualisation.podman.enable = true;
   virtualisation.waydroid.enable = true;
+
+  # Serviço para forçar a GPU AMD (RX 550) no Waydroid
+  systemd.services.waydroid-gpu-persistence = {
+    description = "Forçar propriedades da GPU AMD para Waydroid";
+    after = [ "waydroid-container.service" ];
+    bindsTo = [ "waydroid-container.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.writeShellScript "waydroid-amd-fix" ''
+        set -e
+        ${pkgs.coreutils}/bin/sleep 2
+        ${config.virtualisation.waydroid.package}/bin/waydroid prop set ro.hardware.gralloc gbm
+        ${config.virtualisation.waydroid.package}/bin/waydroid prop set ro.hardware.egl mesa
+        ${config.virtualisation.waydroid.package}/bin/waydroid prop set gralloc.gbm.device /dev/dri/renderD129
+      ''}";
+      RemainAfterExit = true;
+    };
+  };
+
   programs.firefox.enable = true;
   programs.steam.enable = true;
   programs.gamemode.enable = true;
