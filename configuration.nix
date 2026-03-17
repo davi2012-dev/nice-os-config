@@ -42,11 +42,6 @@
 
   # --- SISTEMA E HARDWARE ---
   nixpkgs.config.allowUnfree = true;
-  nixpkgs.config.packageOverrides = pkgs: {
-    nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/master.tar.gz") {
-      inherit pkgs;
-    };
-  };
 
   boot.initrd.luks.devices."luks-3342c12e-259e-45d5-8592-dbba43ae755e".device = "/dev/disk/by-uuid/3342c12e-259e-45d5-8592-dbba43ae755e";
   boot.kernelModules = [ "fuse" ];
@@ -140,9 +135,7 @@
     kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
     kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
     kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
-    myPython
-    # PACOTE DO NUR CORRIGIDO
-    nur.repos.ataraxiasjel.waydroid-script
+    myPython lzip
   ];
 
   # --- CONFIGURAÇÃO WAYDROID E GPU AMD ---
