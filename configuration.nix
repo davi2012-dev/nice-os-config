@@ -135,7 +135,7 @@
     kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
     kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
     kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
-    myPython lzip distrobox
+    myPython lzip distrobox ryujinx
   ];
 
   # --- CONFIGURAÇÃO WAYDROID E GPU AMD ---
