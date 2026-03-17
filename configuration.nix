@@ -63,7 +63,7 @@
   services.desktopManager.plasma6.enable = true;
   services.xserver.xkb = { layout = "br"; variant = ""; };
 
-  # Bluetooth e KDE Connect (Necessários para os widgets)
+  # Bluetooth e KDE Connect
   hardware.bluetooth.enable = true;
   programs.kdeconnect.enable = true;
 
@@ -103,7 +103,7 @@
     '';
   };
 
-  # --- VARIÁVEIS DE AMBIENTE (PARA OS WIDGETS FUNCIONAREM) ---
+  # --- VARIÁVEIS DE AMBIENTE ---
   environment.variables = {
     QML2_IMPORT_PATH = [
       "${pkgs.kdePackages.qtwebsockets}/lib/qt-6/qml"
@@ -136,6 +136,9 @@
     kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
     kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
     kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
+    # --- ADICIONADO PARA O CAVA WIDGET ---
+    python3
+    python3Packages.pip
   ];
 
   # --- APPS EXTRAS ---
