@@ -6,22 +6,41 @@
     <home-manager/nixos>
   ];
 
-  # --- CONFIGURAÇÃO DO PLYMOUTH (BOOT ANIMADO) ---
+  # --- BOOT E LIMITE DE GERAÇÕES ---
+  boot.loader.systemd-boot = {
+    enable = true;
+    configurationLimit = 5; # Limpa o menu de boot
+  };
+  boot.loader.efi.canTouchEfiVariables = true;
+
+  # --- PLYMOUTH (BOOT ANIMADO SEM ERROS) ---
   boot.plymouth = {
     enable = true;
-    theme = "breeze"; # Tema oficial do KDE
+    theme = "bgrt"; 
   };
-  # Parâmetros para um boot silencioso e limpo
   boot.consoleLogLevel = 0;
   boot.initrd.verbose = false;
   boot.kernelParams = [ "quiet" "splash" "rd.systemd.show_status=false" "loglevel=3" "udev.log_priority=3" ];
 
-  # --- HOME MANAGER CONFIG ---
+  # --- HOME MANAGER ---
   home-manager.users.davi = import ./home.nix;
-  # ESSA LINHA RESOLVE O ERRO DO .zshrc (Cria um backup automático)
   home-manager.backupFileExtension = "backup"; 
 
-  # --- RESTO DO SEU SISTEMA ---
+  # --- CONFIGURAÇÕES DO NIX E LIMPEZA ---
+  nix.settings = {
+    experimental-features = [ "nix-command" "flakes" ];
+    substituters = [ "https://nix-community.cachix.org" ];
+    trusted-public-keys = [ "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=" ];
+    auto-optimise-store = true;
+  };
+
+  nix.gc = {
+    automatic = true;
+    dates = "weekly";
+    options = "--delete-older-than 7d";
+  };
+
+  # --- SISTEMA E HARDWARE ---
   nixpkgs.config.allowUnfree = true;
   nixpkgs.config.packageOverrides = pkgs: {
     nur = import (builtins.fetchTarball "https://github.com/nix-community/NUR/archive/master.tar.gz") {
@@ -29,33 +48,16 @@
     };
   };
 
-  nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
-    substituters = [ "https://nix-community.cachix.org" ];
-    trusted-public-keys = [ "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=" ];
-  };
-
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 10d";
-  };
-
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;
   boot.initrd.luks.devices."luks-3342c12e-259e-45d5-8592-dbba43ae755e".device = "/dev/disk/by-uuid/3342c12e-259e-45d5-8592-dbba43ae755e";
-  
   boot.kernelModules = [ "fuse" ];
   programs.fuse.userAllowOther = true;
 
   networking.hostName = "nixos";
   networking.networkmanager.enable = true;
-
   time.timeZone = "America/Bahia";
   i18n.defaultLocale = "pt_BR.UTF-8";
 
-  # ... (suas i18n.extraLocaleSettings e console.keyMap continuam iguais)
-
+  # --- INTERFACE (KDE PLASMA 6) ---
   services.xserver.enable = true;
   services.displayManager.sddm.enable = true;
   services.desktopManager.plasma6.enable = true;
@@ -70,6 +72,7 @@
     pulse.enable = true;
   };
 
+  # --- USUÁRIO ---
   users.users.davi = {
     isNormalUser = true;
     description = "davi miguel";
@@ -78,7 +81,7 @@
     packages = with pkgs; [ kdePackages.kate ];
   };
 
-  # Mantive o Zsh aqui, mas você já pode pensar em mover isso para o home.nix depois!
+  # --- ZSH E POWERLEVEL10K (SEM ASSISTENTE CHATO) ---
   programs.zsh = {
     enable = true;
     autosuggestions.enable = true;
@@ -89,29 +92,39 @@
       plugins = [ "git" "sudo" "history-substring-search" ];
     };
     interactiveShellInit = ''
+      [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+      POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
       fastfetch
       eval "$(zoxide init zsh)"
     '';
   };
 
+  # --- PACOTES E SCRIPT NIX-SYNC ---
+  environment.systemPackages = let
+    nix-sync = pkgs.writeShellScriptBin "nix-sync" ''
+      echo "Atualizando canais..."
+      sudo nix-channel --update
+      echo "Reconstruindo sistema..."
+      sudo nixos-rebuild switch --upgrade
+      echo "Limpando gerações antigas..."
+      sudo nix-collect-garbage -d
+      echo "Backup Git..."
+      cd /etc/nixos && sudo git add . && sudo git commit -m "Auto: $(date)" && sudo git push
+    '';
+  in with pkgs; [
+    nix-sync pkg-config libevdev fastfetch ghostty git unzip curl owofetch bat broot btop chafa 
+    duf dust eza fd ffmpeg fzf htop perl perlPackages.ImageExifTool rename procs rclone 
+    ripgrep rsync scrot sqlite tldr tmux vnstat wget xdg-user-dirs xsel yt-dlp zoxide 
+    wine cmatrix figlet sl cowsay appimage-run fuse fuse3 ifuse tor-browser 
+    kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop
+  ];
+
+  # --- APPS EXTRAS ---
   services.flatpak.enable = true;
   virtualisation.podman.enable = true;
   virtualisation.waydroid.enable = true;
   programs.firefox.enable = true;
-
-  environment.systemPackages = with pkgs; [
-    fastfetch ghostty git unzip curl owofetch bat broot btop chafa duf dust eza fd ffmpeg fzf htop 
-    perl perlPackages.ImageExifTool rename procs rclone ripgrep rsync scrot sqlite tldr tmux vnstat 
-    wget xdg-user-dirs xsel yt-dlp zoxide wine cmatrix figlet sl cowsay appimage-run fuse fuse3 ifuse 
-    tor-browser kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop
-  ];
-  
-  programs.steam = {
-    enable = true;
-    remotePlay.openFirewall = true;
-    dedicatedServer.openFirewall = true;
-  };
-
+  programs.steam.enable = true;
   programs.gamemode.enable = true;
 
   system.stateVersion = "25.11";
