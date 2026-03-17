@@ -9,11 +9,11 @@
   # --- BOOT E LIMITE DE GERAÇÕES ---
   boot.loader.systemd-boot = {
     enable = true;
-    configurationLimit = 5; # Limpa o menu de boot
+    configurationLimit = 5;
   };
   boot.loader.efi.canTouchEfiVariables = true;
 
-  # --- PLYMOUTH (BOOT ANIMADO SEM ERROS) ---
+  # --- PLYMOUTH (BOOT ANIMADO) ---
   boot.plymouth = {
     enable = true;
     theme = "bgrt"; 
@@ -81,7 +81,7 @@
     packages = with pkgs; [ kdePackages.kate ];
   };
 
-  # --- ZSH E POWERLEVEL10K (SEM ASSISTENTE CHATO) ---
+  # --- ZSH E POWERLEVEL10K ---
   programs.zsh = {
     enable = true;
     autosuggestions.enable = true;
@@ -97,6 +97,17 @@
       fastfetch
       eval "$(zoxide init zsh)"
     '';
+  };
+
+  # --- VARIÁVEIS DE AMBIENTE (PARA OS WIDGETS FUNCIONAREM) ---
+  environment.variables = {
+    QML2_IMPORT_PATH = [
+      "${pkgs.kdePackages.qtwebsockets}/lib/qt-6/qml"
+      "${pkgs.kdePackages.qtconnectivity}/lib/qt-6/qml"
+      "${pkgs.kdePackages.kdeconnect-kde}/lib/qt-6/qml"
+      "${pkgs.kdePackages.bluez-qt}/lib/qt-6/qml"
+      "${pkgs.kdePackages.qtmultimedia}/lib/qt-6/qml"
+    ];
   };
 
   # --- PACOTES E SCRIPT NIX-SYNC ---
@@ -116,7 +127,9 @@
     duf dust eza fd ffmpeg fzf htop perl perlPackages.ImageExifTool rename procs rclone 
     ripgrep rsync scrot sqlite tldr tmux vnstat wget xdg-user-dirs xsel yt-dlp zoxide 
     wine cmatrix figlet sl cowsay appimage-run fuse fuse3 ifuse tor-browser 
-    kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava cowsay kdePackages.qtwebsockets kdePackages.qtconnectivity QtMultimedia
+    kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
+    kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
+    kdePackages.kdeconnect-kde kdePackages.bluez-qt
   ];
 
   # --- APPS EXTRAS ---
