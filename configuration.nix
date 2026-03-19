@@ -125,7 +125,7 @@
       cd /etc/nixos && sudo git add . && sudo git commit -m "Auto: $(date)" && sudo git push
     '';
 
-    painel-gabinete = pkgs.writers.writePy3Bin "painel-gabinete" {
+    painel-gabinete = pkgs.writers.writePython3Bin "painel-gabinete" {
       libraries = with pkgs.python3Packages; [ pyside6 psutil ];
     } ''
       import sys, psutil
