@@ -1,5 +1,48 @@
 { config, pkgs, ... }:
 
+let
+  # Definindo o painel aqui fora para ser acessível em todo o arquivo
+  painel-gabinete = pkgs.writers.writePython3Bin "painel-gabinete" {
+    libraries = with pkgs.python3Packages; [ pyside6 psutil ];
+  } ''
+    import sys, psutil
+    from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QProgressBar
+    from PySide6.QtCore import QTimer, Qt
+
+    class Dashboard(QWidget):
+        def __init__(self):
+            super().__init__()
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+            self.setStyleSheet("background-color: black; color: #00ff00; font-family: 'Roboto Mono';")
+            self.setFixedSize(320, 480)
+            layout = QVBoxLayout()
+            self.cpu_bar = QProgressBar(); self.ram_bar = QProgressBar()
+            style = "QProgressBar { border: 1px solid #333; border-radius: 5px; text-align: center; background: #111; } QProgressBar::chunk { background-color: #00ff00; }"
+            self.cpu_bar.setStyleSheet(style); self.ram_bar.setStyleSheet(style.replace("#00ff00", "#00ccff"))
+            layout.addWidget(QLabel("CPU USAGE")); layout.addWidget(self.cpu_bar)
+            layout.addWidget(QLabel("RAM USAGE")); layout.addWidget(self.ram_bar)
+            self.setLayout(layout)
+            timer = QTimer(self); timer.timeout.connect(self.update_stats); timer.start(1000)
+
+        def update_stats(self):
+            self.cpu_bar.setValue(int(psutil.cpu_percent()))
+            self.ram_bar.setValue(int(psutil.virtual_memory().percent))
+
+    app = QApplication(sys.argv)
+    win = Dashboard(); win.show(); sys.exit(app.exec())
+  '';
+
+  nix-sync = pkgs.writeShellScriptBin "nix-sync" ''
+    echo "Atualizando canais..."
+    sudo nix-channel --update
+    echo "Reconstruindo sistema..."
+    sudo nixos-rebuild switch --upgrade
+    echo "Limpando gerações antigas..."
+    sudo nix-collect-garbage -d
+    echo "Backup Git..."
+    cd /etc/nixos && sudo git add . && sudo git commit -m "Auto: $(date)" && sudo git push
+  '';
+in
 {
   imports = [
     ./hardware-configuration.nix
@@ -86,7 +129,7 @@
     enable = true;
     autosuggestions.enable = true;
     syntaxHighlighting.enable = true;
-    promptInit = "source ${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
+    promptInit = "source ${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.ztheme";
     ohMyZsh = {
       enable = true;
       plugins = [ "git" "sudo" "history-substring-search" ];
@@ -112,49 +155,8 @@
     ];
   };
 
-  # --- PACOTES E PAINEL TOUCH ---
-  environment.systemPackages = let
-    nix-sync = pkgs.writeShellScriptBin "nix-sync" ''
-      echo "Atualizando canais..."
-      sudo nix-channel --update
-      echo "Reconstruindo sistema..."
-      sudo nixos-rebuild switch --upgrade
-      echo "Limpando gerações antigas..."
-      sudo nix-collect-garbage -d
-      echo "Backup Git..."
-      cd /etc/nixos && sudo git add . && sudo git commit -m "Auto: $(date)" && sudo git push
-    '';
-
-    painel-gabinete = pkgs.writers.writePython3Bin "painel-gabinete" {
-      libraries = with pkgs.python3Packages; [ pyside6 psutil ];
-    } ''
-      import sys, psutil
-      from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QProgressBar
-      from PySide6.QtCore import QTimer, Qt
-
-      class Dashboard(QWidget):
-          def __init__(self):
-              super().__init__()
-              self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-              self.setStyleSheet("background-color: black; color: #00ff00; font-family: 'Roboto Mono';")
-              self.setFixedSize(320, 480)
-              layout = QVBoxLayout()
-              self.cpu_bar = QProgressBar(); self.ram_bar = QProgressBar()
-              style = "QProgressBar { border: 1px solid #333; border-radius: 5px; text-align: center; background: #111; } QProgressBar::chunk { background-color: #00ff00; }"
-              self.cpu_bar.setStyleSheet(style); self.ram_bar.setStyleSheet(style.replace("#00ff00", "#00ccff"))
-              layout.addWidget(QLabel("CPU USAGE")); layout.addWidget(self.cpu_bar)
-              layout.addWidget(QLabel("RAM USAGE")); layout.addWidget(self.ram_bar)
-              self.setLayout(layout)
-              timer = QTimer(self); timer.timeout.connect(self.update_stats); timer.start(1000)
-
-          def update_stats(self):
-              self.cpu_bar.setValue(int(psutil.cpu_percent()))
-              self.ram_bar.setValue(int(psutil.virtual_memory().percent))
-
-      app = QApplication(sys.argv)
-      win = Dashboard(); win.show(); sys.exit(app.exec())
-    '';
-  in with pkgs; [
+  # --- PACOTES ---
+  environment.systemPackages = with pkgs; [
     nix-sync painel-gabinete pkg-config libevdev fastfetch ghostty git unzip curl owofetch bat broot btop chafa 
     duf dust eza fd ffmpeg fzf htop perl perlPackages.ImageExifTool rename procs rclone 
     ripgrep rsync scrot sqlite tldr tmux vnstat wget xdg-user-dirs xsel yt-dlp zoxide 
@@ -169,7 +171,7 @@
   systemd.user.services.painel-touch = {
     description = "Inicia painel touch";
     wantedBy = [ "graphical-session.target" ];
-    serviceConfig.ExecStart = "${pkgs.painel-gabinete}/bin/painel-gabinete";
+    serviceConfig.ExecStart = "${painel-gabinete}/bin/painel-gabinete";
   };
 
   # --- CONFIGURAÇÃO WAYDROID E GPU AMD ---
