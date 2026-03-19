@@ -1,9 +1,8 @@
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 {
   imports = [
     ./hardware-configuration.nix
-    <home-manager/nixos>
   ];
 
   # --- BOOT E LIMITE DE GERAÇÕES ---
@@ -16,7 +15,7 @@
   # --- PLYMOUTH (BOOT ANIMADO) ---
   boot.plymouth = {
     enable = true;
-    theme = "bgrt"; 
+    theme = lib.mkForce "bgrt"; 
   };
   boot.consoleLogLevel = 0;
   boot.initrd.verbose = false;
@@ -26,7 +25,7 @@
   home-manager.users.davi = import ./home.nix;
   home-manager.backupFileExtension = "backup"; 
 
-  # --- CONFIGURAÇÕES DO NIX E LIMPEZA ---
+  # --- CONFIGURAÇÕES DO NIX E NH ---
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
     substituters = [ "https://nix-community.cachix.org" ];
@@ -34,14 +33,41 @@
     auto-optimise-store = true;
   };
 
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 7d";
+  programs.nh = {
+    enable = true;
+    clean.enable = true;
+    clean.extraArgs = "--keep-since 4d --keep 3";
+    flake = "/etc/nixos"; 
   };
+
+  # --- PERFORMANCE E MEMÓRIA (16GB RAM) ---
+  zramSwap = {
+    enable = true;
+    memoryPercent = 50;
+    priority = 100;
+  };
+
+  services.earlyoom = {
+    enable = true;
+    freeMemThreshold = 5;
+  };
+
+  services.fstrim.enable = true;
 
   # --- SISTEMA E HARDWARE ---
   nixpkgs.config.allowUnfree = true;
+
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+    extraPackages = with pkgs; [
+      intel-vaapi-driver
+      intel-media-driver
+      libvdpau-va-gl
+    ];
+  };
+  services.xserver.videoDrivers = [ "amdgpu" ];
+  boot.initrd.kernelModules = [ "amdgpu" ];
 
   boot.initrd.luks.devices."luks-3342c12e-259e-45d5-8592-dbba43ae755e".device = "/dev/disk/by-uuid/3342c12e-259e-45d5-8592-dbba43ae755e";
   boot.kernelModules = [ "fuse" ];
@@ -59,7 +85,6 @@
   services.desktopManager.plasma6.enable = true;
   services.xserver.xkb = { layout = "br"; variant = ""; };
 
-  # Bluetooth e KDE Connect
   hardware.bluetooth.enable = true;
   programs.kdeconnect.enable = true;
 
@@ -112,9 +137,9 @@
     ];
   };
 
-  # --- PACOTES E SCRIPT NIX-SYNC ---
+  # --- PACOTES ---
   environment.systemPackages = let
-    nix-sync = pkgs.writeShellScriptBin "nix-sync" ''
+    nix-sync-script = pkgs.writeShellScriptBin "nix-sync" ''
       set -e
       echo "Atualizando canais..."
       sudo nix-channel --update
@@ -132,21 +157,19 @@
         exit 1
       fi
     '';
-    myPython = pkgs.python3.withPackages (ps: with ps; [ 
-      websockets 
-    ]);
+    myPython = pkgs.python3.withPackages (ps: with ps; [ websockets ]);
   in with pkgs; [
-    nix-sync pkg-config libevdev fastfetch ghostty git unzip curl owofetch bat broot btop chafa 
+    nix-sync-script pkg-config libevdev fastfetch ghostty git unzip curl owofetch bat broot btop chafa 
     duf dust eza fd ffmpeg fzf htop perl perlPackages.ImageExifTool rename procs rclone 
     ripgrep rsync scrot sqlite tldr tmux vnstat wget xdg-user-dirs xsel yt-dlp zoxide 
-    wineWowPackages.stable cmatrix figlet sl cowsay appimage-run fuse fuse3 ifuse tor-browser 
-    kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
+    wineWow64Packages.stable cmatrix figlet sl cowsay appimage-run fuse fuse3 ifuse tor-browser 
+    kdePackages.kleopatra hblock keepassxc macchanger  gotop cava
     kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
     kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
-    myPython lzip distrobox ryubing roboto roboto-mono
+    myPython lzip distrobox ryubing roboto roboto-mono kando
   ];
 
-  # --- CONFIGURAÇÃO WAYDROID E GPU AMD ---
+  # --- VIRTUALIZAÇÃO ---
   services.flatpak.enable = true;
   virtualisation.podman.enable = true;
   virtualisation.waydroid.enable = true;
@@ -173,5 +196,6 @@
   programs.steam.enable = true;
   programs.gamemode.enable = true;
 
+  
   system.stateVersion = "25.11";
 }
