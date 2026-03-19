@@ -124,7 +124,7 @@
     '';
   };
 
-  # --- VARIÁVEIS DE AMBIENTE ---
+# --- VARIÁVEIS DE AMBIENTE ---
   environment.variables = {
     QML2_IMPORT_PATH = [
       "${pkgs.kdePackages.qtwebsockets}/lib/qt-6/qml"
@@ -134,7 +134,10 @@
       "${pkgs.kdePackages.qtmultimedia}/lib/qt-6/qml"
       "${pkgs.kdePackages.plasma-nm}/lib/qt-6/qml"
       "${pkgs.kdePackages.bluedevil}/lib/qt-6/qml"
-    ];
+      "${pkgs.kdePackages.plasma-desktop}/lib/qt-6/qml"
+      "${pkgs.kdePackages.libplasma}/lib/qt-6/qml"
+      "${pkgs.kdePackages.frameworkintegration}/lib/qt-6/qml"
+    ]; # <--- O colchete e ponto-vírgula devem fechar aqui!
   };
 
   # --- PACOTES ---
