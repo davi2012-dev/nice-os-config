@@ -1,61 +1,47 @@
 { config, pkgs, ... }:
 
 let
-  painel-gabinete = pkgs.writers.writePython3Bin "painel-gabinete" {
-    libraries = with pkgs.python3Packages; [ pyside6 psutil ];
-  } ''
-    import sys
-    import psutil
-    from PySide6.QtWidgets import (
-        QApplication, QWidget, QVBoxLayout, QLabel, QProgressBar
-    )
-    from PySide6.QtCore import QTimer, Qt
+  # Painel em Rust: Performance máxima e sem erros de linter de script
+  painel-gabinete = pkgs.rustPlatform.buildRustPackage rec {
+    pname = "painel-gabinete";
+    version = "1.0.0";
 
-    class Dashboard(QWidget):
-        def __init__(self):
-            super().__init__()
-            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-            self.setStyleSheet(
-                "background-color: black; color: #00ff00; "
-                "font-family: 'Roboto Mono';"
-            )
-            self.setFixedSize(320, 480)
-            layout = QVBoxLayout()
+    src = pkgs.writeTextDir "src/main.rs" ''
+      use sysinfo::{CpuExt, System, SystemExt};
+      use std::thread;
+      use std::time::Duration;
 
-            self.cpu_bar = QProgressBar()
-            self.ram_bar = QProgressBar()
+      fn main() {
+          let mut sys = System::new_all();
+          println!("Monitor de Sistema iniciado.");
+          loop {
+              sys.refresh_all();
+              let cpu = sys.global_cpu_info().cpu_usage();
+              let ram = (sys.used_memory() as f32 / sys.total_memory() as f32) * 100.0;
+              
+              // Saída formatada (Pode ser visualizada via journalctl -u painel-touch)
+              println!("CPU: {:.1}% | RAM: {:.1}%", cpu, ram);
+              thread::sleep(Duration::from_secs(1));
+          }
+      }
+    '';
 
-            style = (
-                "QProgressBar { border: 1px solid #333; border-radius: 5px; "
-                "text-align: center; background: #111; } "
-                "QProgressBar::chunk { background-color: #00ff00; }"
-            )
+    cargoConfig = pkgs.writeText "Cargo.toml" ''
+      [package]
+      name = "painel-gabinete"
+      version = "1.0.0"
+      edition = "2021"
 
-            self.cpu_bar.setStyleSheet(style)
-            self.ram_bar.setStyleSheet(style.replace("#00ff00", "#00ccff"))
+      [dependencies]
+      sysinfo = "0.29"
+    '';
 
-            layout.addWidget(QLabel("CPU USAGE"))
-            layout.addWidget(self.cpu_bar)
-            layout.addWidget(QLabel("RAM USAGE"))
-            layout.addWidget(self.ram_bar)
-
-            self.setLayout(layout)
-
-            timer = QTimer(self)
-            timer.timeout.connect(self.update_stats)
-            timer.start(1000)
-
-        def update_stats(self):
-            self.cpu_bar.setValue(int(psutil.cpu_percent()))
-            self.ram_bar.setValue(int(psutil.virtual_memory().percent))
-
-
-    if __name__ == "__main__":
-        app = QApplication(sys.argv)
-        win = Dashboard()
-        win.show()
-        sys.exit(app.exec())
-  '';
+    unpackPhase = "mkdir -p src && cp $src/src/main.rs src/ && cp $cargoConfig Cargo.toml";
+    
+    # IMPORTANTE: No primeiro build, o Nix vai dar erro de hash. 
+    # Copie o hash correto do erro e cole aqui.
+    cargoHash = pkgs.lib.fakeHash; 
+  };
 
   nix-sync = pkgs.writeShellScriptBin "nix-sync" ''
     echo "Atualizando canais..."
@@ -74,119 +60,64 @@ in
     <home-manager/nixos>
   ];
 
-  # --- BOOT ---
-  boot.loader.systemd-boot = {
-    enable = true;
-    configurationLimit = 5;
-  };
+  # --- BOOT & KERNEL ---
+  boot.loader.systemd-boot = { enable = true; configurationLimit = 5; };
   boot.loader.efi.canTouchEfiVariables = true;
-
-  boot.plymouth = {
-    enable = true;
-    theme = "bgrt"; 
-  };
-  boot.consoleLogLevel = 0;
-  boot.initrd.verbose = false;
+  boot.plymouth.enable = true;
   boot.kernelParams = [ "quiet" "splash" "rd.systemd.show_status=false" "loglevel=3" "udev.log_priority=3" ];
 
-  # --- HOME MANAGER ---
-  home-manager.users.davi = import ./home.nix;
-  home-manager.backupFileExtension = "backup"; 
-
-  # --- NIX SETTINGS ---
-  nix.settings = {
-    experimental-features = [ "nix-command" "flakes" ];
-    substituters = [ "https://nix-community.cachix.org" ];
-    trusted-public-keys = [ "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=" ];
-    auto-optimise-store = true;
-  };
-
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 7d";
-  };
-
-  nixpkgs.config.allowUnfree = true;
-
-  # --- NETWORKING & LOCALE ---
+  # --- SISTEMA ---
   networking.hostName = "nixos";
   networking.networkmanager.enable = true;
   networking.firewall.trustedInterfaces = [ "waydroid0" ]; 
   time.timeZone = "America/Bahia";
   i18n.defaultLocale = "pt_BR.UTF-8";
+  nixpkgs.config.allowUnfree = true;
 
-  # --- DESKTOP ENVIRONMENT ---
+  # --- INTERFACE (PLASMA 6) ---
   services.xserver.enable = true;
   services.displayManager.sddm.enable = true;
   services.desktopManager.plasma6.enable = true;
-  services.xserver.xkb = { layout = "br"; variant = ""; };
+  services.pipewire = { enable = true; alsa.enable = true; pulse.enable = true; };
 
-  hardware.bluetooth.enable = true;
-  programs.kdeconnect.enable = true;
-
-  services.printing.enable = true;
-  security.rtkit.enable = true;
-  services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
-  };
-
-  # --- USER ---
+  # --- USUÁRIO ---
   users.users.davi = {
     isNormalUser = true;
-    description = "davi miguel";
     extraGroups = [ "networkmanager" "wheel" "video" "podman" "bluetooth" ];
-    shell = pkgs.zsh; 
-    packages = with pkgs; [ kdePackages.kate ];
+    shell = pkgs.zsh;
   };
 
-  # --- ZSH ---
-  programs.zsh = {
-    enable = true;
-    autosuggestions.enable = true;
-    syntaxHighlighting.enable = true;
-    promptInit = "source ${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
-    ohMyZsh = {
-      enable = true;
-      plugins = [ "git" "sudo" "history-substring-search" ];
-    };
-    interactiveShellInit = ''
-      [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-      POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
-      fastfetch
-      eval "$(zoxide init zsh)"
-    '';
-  };
-
-  # --- SYSTEM PACKAGES ---
+  # --- PACOTES ---
   environment.systemPackages = with pkgs; [
-    nix-sync painel-gabinete pkg-config libevdev fastfetch ghostty git unzip curl owofetch bat broot btop chafa 
-    duf dust eza fd ffmpeg fzf htop perl perlPackages.ImageExifTool rename procs rclone 
-    ripgrep rsync scrot sqlite tldr tmux vnstat wget xdg-user-dirs xsel yt-dlp zoxide 
-    wine cmatrix figlet sl cowsay appimage-run fuse fuse3 ifuse tor-browser 
-    kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
-    kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
-    kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
-    lzip distrobox ryubing roboto roboto-mono
-  ];
+    nix-sync painel-gabinete git fastfetch btop ghostty 
+    rustc cargo gcc distrobox lzip
+  ] ++ (with pkgs.kdePackages; [ kdeconnect-kde kate ]);
 
-  # --- SERVICES ---
+  # --- SERVIÇOS ---
   systemd.user.services.painel-touch = {
-    description = "Inicia painel touch";
+    description = "Painel de Monitoramento (Rust)";
     wantedBy = [ "graphical-session.target" ];
     serviceConfig.ExecStart = "${painel-gabinete}/bin/painel-gabinete";
   };
 
-  services.flatpak.enable = true;
-  virtualisation.podman.enable = true;
+  # --- WAYDROID + GPU AMD ---
   virtualisation.waydroid.enable = true;
+  virtualisation.podman.enable = true;
 
-  programs.firefox.enable = true;
-  programs.steam.enable = true;
-  programs.gamemode.enable = true;
+  systemd.services.waydroid-gpu-fix = {
+    description = "Configura GPU AMD (Mesa/GBM) no Waydroid";
+    after = [ "waydroid-container.service" ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${pkgs.writeShellScript "waydroid-fix" ''
+        ${pkgs.coreutils}/bin/sleep 5
+        ${config.virtualisation.waydroid.package}/bin/waydroid prop set ro.hardware.gralloc gbm
+        ${config.virtualisation.waydroid.package}/bin/waydroid prop set ro.hardware.egl mesa
+        ${config.virtualisation.waydroid.package}/bin/waydroid prop set gralloc.gbm.device /dev/dri/renderD129
+      ''}";
+    };
+    wantedBy = [ "multi-user.target" ];
+  };
 
   system.stateVersion = "25.11";
 }
