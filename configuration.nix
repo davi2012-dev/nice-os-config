@@ -162,7 +162,7 @@
     kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
     kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
     kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
-    lzip distrobox ryubing roboto roboto-mono wine-mono
+    lzip distrobox ryubing roboto roboto-mono
   ];
 
   # --- SERVIÇO AUTO-START PAINEL ---
