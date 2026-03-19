@@ -1,88 +1,317 @@
-{ config, pkgs, ... }:
+ { config, pkgs, ... }:
 
-let
-  painel-gabinete = pkgs.rustPlatform.buildRustPackage rec {
-    pname = "painel-gabinete";
-    version = "1.0.0";
 
-    src = pkgs.writeTextDir "src/main.rs" ''
-      use sysinfo::{CpuExt, System, SystemExt};
-      use std::thread;
-      use std::time::Duration;
-
-      fn main() {
-          let mut sys = System::new_all();
-          loop {
-              sys.refresh_all();
-              let cpu = sys.global_cpu_info().cpu_usage();
-              let ram = (sys.used_memory() as f32 / sys.total_memory() as f32) * 100.0;
-              println!("CPU: {:.1}% | RAM: {:.1}%", cpu, ram);
-              thread::sleep(Duration::from_secs(1));
-          }
-      }
-    '';
-
-    cargoConfig = pkgs.writeText "Cargo.toml" ''
-      [package]
-      name = "painel-gabinete"
-      version = "1.0.0"
-      edition = "2021"
-
-      [dependencies]
-      sysinfo = "0.29"
-    '';
-
-    unpackPhase = "mkdir -p src && cp $src/src/main.rs src/ && cp $cargoConfig Cargo.toml";
-    
-    # O Nix vai falhar aqui e te dar o hash real. Substitua quando ele avisar.
-    cargoHash = pkgs.lib.fakeHash; 
-  };
-
-  nix-sync = pkgs.writeShellScriptBin "nix-sync" ''
-    sudo nixos-rebuild switch --upgrade && \
-    cd /etc/nixos && sudo git add . && sudo git commit -m "Auto: $(date)" && sudo git push
-  '';
-in
 {
-  imports = [ ./hardware-configuration.nix <home-manager/nixos> ];
 
-  # --- FIX DO ZSH ---
-  programs.zsh.enable = true; # ESSENCIAL: Resolve o erro do seu log
+  imports = [
 
-  # --- RESTO DA CONFIGURAÇÃO ---
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;
-  
-  networking.hostName = "nixos";
-  networking.networkmanager.enable = true;
-  networking.firewall.trustedInterfaces = [ "waydroid0" ];
+    ./hardware-configuration.nix
 
-  users.users.davi = {
-    isNormalUser = true;
-    extraGroups = [ "networkmanager" "wheel" "video" "podman" "bluetooth" ];
-    shell = pkgs.zsh;
-  };
+    <home-manager/nixos>
 
-  environment.systemPackages = with pkgs; [
-    nix-sync painel-gabinete git fastfetch btop rustc cargo gcc
   ];
 
-  # --- WAYDROID GPU AMD ---
-  virtualisation.waydroid.enable = true;
-  systemd.services.waydroid-gpu-fix = {
-    description = "Configura GPU AMD no Waydroid";
-    after = [ "waydroid-container.service" ];
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "${pkgs.writeShellScript "waydroid-fix" ''
-        ${pkgs.coreutils}/bin/sleep 5
-        ${config.virtualisation.waydroid.package}/bin/waydroid prop set ro.hardware.gralloc gbm
-        ${config.virtualisation.waydroid.package}/bin/waydroid prop set ro.hardware.egl mesa
-        ${config.virtualisation.waydroid.package}/bin/waydroid prop set gralloc.gbm.device /dev/dri/renderD129
-      ''}";
-    };
-    wantedBy = [ "multi-user.target" ];
+
+  # --- BOOT E LIMITE DE GERAÇÕES ---
+
+  boot.loader.systemd-boot = {
+
+    enable = true;
+
+    configurationLimit = 5;
+
   };
 
+  boot.loader.efi.canTouchEfiVariables = true;
+
+
+  # --- PLYMOUTH (BOOT ANIMADO) ---
+
+  boot.plymouth = {
+
+    enable = true;
+
+    theme = "bgrt"; 
+
+  };
+
+  boot.consoleLogLevel = 0;
+
+  boot.initrd.verbose = false;
+
+  boot.kernelParams = [ "quiet" "splash" "rd.systemd.show_status=false" "loglevel=3" "udev.log_priority=3" ];
+
+
+  # --- HOME MANAGER ---
+
+  home-manager.users.davi = import ./home.nix;
+
+  home-manager.backupFileExtension = "backup"; 
+
+
+  # --- CONFIGURAÇÕES DO NIX E LIMPEZA ---
+
+  nix.settings = {
+
+    experimental-features = [ "nix-command" "flakes" ];
+
+    substituters = [ "https://nix-community.cachix.org" ];
+
+    trusted-public-keys = [ "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs=" ];
+
+    auto-optimise-store = true;
+
+  };
+
+
+  nix.gc = {
+
+    automatic = true;
+
+    dates = "weekly";
+
+    options = "--delete-older-than 7d";
+
+  };
+
+
+  # --- SISTEMA E HARDWARE ---
+
+  nixpkgs.config.allowUnfree = true;
+
+
+  boot.initrd.luks.devices."luks-3342c12e-259e-45d5-8592-dbba43ae755e".device = "/dev/disk/by-uuid/3342c12e-259e-45d5-8592-dbba43ae755e";
+
+  boot.kernelModules = [ "fuse" ];
+
+  programs.fuse.userAllowOther = true;
+
+
+  networking.hostName = "nixos";
+
+  networking.networkmanager.enable = true;
+
+  networking.firewall.trustedInterfaces = [ "waydroid0" ]; 
+
+  time.timeZone = "America/Bahia";
+
+  i18n.defaultLocale = "pt_BR.UTF-8";
+
+
+  # --- INTERFACE (KDE PLASMA 6) ---
+
+  services.xserver.enable = true;
+
+  services.displayManager.sddm.enable = true;
+
+  services.desktopManager.plasma6.enable = true;
+
+  services.xserver.xkb = { layout = "br"; variant = ""; };
+
+
+  # Bluetooth e KDE Connect
+
+  hardware.bluetooth.enable = true;
+
+  programs.kdeconnect.enable = true;
+
+
+  services.printing.enable = true;
+
+  security.rtkit.enable = true;
+
+  services.pipewire = {
+
+    enable = true;
+
+    alsa.enable = true;
+
+    alsa.support32Bit = true;
+
+    pulse.enable = true;
+
+  };
+
+
+  # --- USUÁRIO ---
+
+  users.users.davi = {
+
+    isNormalUser = true;
+
+    description = "davi miguel";
+
+    extraGroups = [ "networkmanager" "wheel" "video" "podman" "bluetooth" ];
+
+    shell = pkgs.zsh; 
+
+    packages = with pkgs; [ kdePackages.kate ];
+
+  };
+
+
+  # --- ZSH E POWERLEVEL10K ---
+
+  programs.zsh = {
+
+    enable = true;
+
+    autosuggestions.enable = true;
+
+    syntaxHighlighting.enable = true;
+
+    promptInit = "source ${pkgs.zsh-powerlevel10k}/share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
+
+    ohMyZsh = {
+
+      enable = true;
+
+      plugins = [ "git" "sudo" "history-substring-search" ];
+
+    };
+
+    interactiveShellInit = ''
+
+      [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+      POWERLEVEL9K_DISABLE_CONFIGURATION_WIZARD=true
+
+      fastfetch
+
+      eval "$(zoxide init zsh)"
+
+    '';
+
+  };
+
+
+  # --- VARIÁVEIS DE AMBIENTE ---
+
+  environment.variables = {
+
+    QML2_IMPORT_PATH = [
+
+      "${pkgs.kdePackages.qtwebsockets}/lib/qt-6/qml"
+
+      "${pkgs.kdePackages.qtconnectivity}/lib/qt-6/qml"
+
+      "${pkgs.kdePackages.kdeconnect-kde}/lib/qt-6/qml"
+
+      "${pkgs.kdePackages.bluez-qt}/lib/qt-6/qml"
+
+      "${pkgs.kdePackages.qtmultimedia}/lib/qt-6/qml"
+
+      "${pkgs.kdePackages.plasma-nm}/lib/qt-6/qml"
+
+      "${pkgs.kdePackages.bluedevil}/lib/qt-6/qml"
+
+    ];
+
+  };
+
+
+  # --- PACOTES E SCRIPT NIX-SYNC ---
+
+  environment.systemPackages = let
+
+    nix-sync = pkgs.writeShellScriptBin "nix-sync" ''
+
+      echo "Atualizando canais..."
+
+      sudo nix-channel --update
+
+      echo "Reconstruindo sistema..."
+
+      sudo nixos-rebuild switch --upgrade
+
+      echo "Limpando gerações antigas..."
+
+      sudo nix-collect-garbage -d
+
+      echo "Backup Git..."
+
+      cd /etc/nixos && sudo git add . && sudo git commit -m "Auto: $(date)" && sudo git push
+
+    '';
+
+    myPython = pkgs.python3.withPackages (ps: with ps; [ 
+
+      websockets 
+
+    ]);
+
+  in with pkgs; [
+
+    nix-sync pkg-config libevdev fastfetch ghostty git unzip curl owofetch bat broot btop chafa 
+
+    duf dust eza fd ffmpeg fzf htop perl perlPackages.ImageExifTool rename procs rclone 
+
+    ripgrep rsync scrot sqlite tldr tmux vnstat wget xdg-user-dirs xsel yt-dlp zoxide 
+
+    wine cmatrix figlet sl cowsay appimage-run fuse fuse3 ifuse tor-browser 
+
+    kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
+
+    kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
+
+    kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
+
+    myPython lzip distrobox ryubing roboto roboto-mono sl cowsay wine-mono
+
+  ];
+
+
+  # --- CONFIGURAÇÃO WAYDROID E GPU AMD ---
+
+  services.flatpak.enable = true;
+
+  virtualisation.podman.enable = true;
+
+  virtualisation.waydroid.enable = true;
+
+
+  systemd.services.waydroid-gpu-persistence = {
+
+    description = "Forçar propriedades da GPU AMD para Waydroid";
+
+    after = [ "waydroid-container.service" ];
+
+    bindsTo = [ "waydroid-container.service" ];
+
+    wantedBy = [ "multi-user.target" ];
+
+    serviceConfig = {
+
+      Type = "oneshot";
+
+      ExecStart = "${pkgs.writeShellScript "waydroid-amd-fix" ''
+
+        set -e
+
+        ${pkgs.coreutils}/bin/sleep 2
+
+        ${config.virtualisation.waydroid.package}/bin/waydroid prop set ro.hardware.gralloc gbm
+
+        ${config.virtualisation.waydroid.package}/bin/waydroid prop set ro.hardware.egl mesa
+
+        ${config.virtualisation.waydroid.package}/bin/waydroid prop set gralloc.gbm.device /dev/dri/renderD129
+
+      ''}";
+
+      RemainAfterExit = true;
+
+    };
+
+  };
+
+
+  programs.firefox.enable = true;
+
+  programs.steam.enable = true;
+
+  programs.gamemode.enable = true;
+
+
   system.stateVersion = "25.11";
-}
+
+} 
