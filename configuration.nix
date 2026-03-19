@@ -135,7 +135,7 @@
     kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
     kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
     kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
-    myPython lzip distrobox ryubing roboto roboto-mono sl cowsay 
+    myPython lzip distrobox ryubing roboto roboto-mono sl cowsay wine-mono
   ];
 
   # --- CONFIGURAÇÃO WAYDROID E GPU AMD ---
