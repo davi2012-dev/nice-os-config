@@ -112,7 +112,7 @@
     ];
   };
 
-  # --- PACOTES E SCRIPT NIX-SYNC ---
+  # --- PACOTES E PAINEL TOUCH ---
   environment.systemPackages = let
     nix-sync = pkgs.writeShellScriptBin "nix-sync" ''
       echo "Atualizando canais..."
@@ -124,19 +124,53 @@
       echo "Backup Git..."
       cd /etc/nixos && sudo git add . && sudo git commit -m "Auto: $(date)" && sudo git push
     '';
-    myPython = pkgs.python3.withPackages (ps: with ps; [ 
-      websockets 
-    ]);
+
+    painel-gabinete = pkgs.writers.writePy3Bin "painel-gabinete" {
+      libraries = with pkgs.python3Packages; [ pyside6 psutil ];
+    } ''
+      import sys, psutil
+      from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QProgressBar
+      from PySide6.QtCore import QTimer, Qt
+
+      class Dashboard(QWidget):
+          def __init__(self):
+              super().__init__()
+              self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+              self.setStyleSheet("background-color: black; color: #00ff00; font-family: 'Roboto Mono';")
+              self.setFixedSize(320, 480)
+              layout = QVBoxLayout()
+              self.cpu_bar = QProgressBar(); self.ram_bar = QProgressBar()
+              style = "QProgressBar { border: 1px solid #333; border-radius: 5px; text-align: center; background: #111; } QProgressBar::chunk { background-color: #00ff00; }"
+              self.cpu_bar.setStyleSheet(style); self.ram_bar.setStyleSheet(style.replace("#00ff00", "#00ccff"))
+              layout.addWidget(QLabel("CPU USAGE")); layout.addWidget(self.cpu_bar)
+              layout.addWidget(QLabel("RAM USAGE")); layout.addWidget(self.ram_bar)
+              self.setLayout(layout)
+              timer = QTimer(self); timer.timeout.connect(self.update_stats); timer.start(1000)
+
+          def update_stats(self):
+              self.cpu_bar.setValue(int(psutil.cpu_percent()))
+              self.ram_bar.setValue(int(psutil.virtual_memory().percent))
+
+      app = QApplication(sys.argv)
+      win = Dashboard(); win.show(); sys.exit(app.exec())
+    '';
   in with pkgs; [
-    nix-sync pkg-config libevdev fastfetch ghostty git unzip curl owofetch bat broot btop chafa 
+    nix-sync painel-gabinete pkg-config libevdev fastfetch ghostty git unzip curl owofetch bat broot btop chafa 
     duf dust eza fd ffmpeg fzf htop perl perlPackages.ImageExifTool rename procs rclone 
     ripgrep rsync scrot sqlite tldr tmux vnstat wget xdg-user-dirs xsel yt-dlp zoxide 
     wine cmatrix figlet sl cowsay appimage-run fuse fuse3 ifuse tor-browser 
     kdePackages.kleopatra hblock keepassxc macchanger kde-rounded-corners gotop cava
     kdePackages.qtwebsockets kdePackages.qtconnectivity kdePackages.qtmultimedia
     kdePackages.kdeconnect-kde kdePackages.bluez-qt kdePackages.bluedevil kdePackages.plasma-nm
-    myPython lzip distrobox ryubing roboto roboto-mono sl cowsay wine-mono
+    lzip distrobox ryubing roboto roboto-mono wine-mono
   ];
+
+  # --- SERVIÇO AUTO-START PAINEL ---
+  systemd.user.services.painel-touch = {
+    description = "Inicia painel touch";
+    wantedBy = [ "graphical-session.target" ];
+    serviceConfig.ExecStart = "${pkgs.painel-gabinete}/bin/painel-gabinete";
+  };
 
   # --- CONFIGURAÇÃO WAYDROID E GPU AMD ---
   services.flatpak.enable = true;
