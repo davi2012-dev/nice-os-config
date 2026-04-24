@@ -1,0 +1,4 @@
+result
+.nix-helpers
+*.qcow2
+*.iso
